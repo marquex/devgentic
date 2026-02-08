@@ -16,5 +16,3 @@ export const REPO_CLONE_DIR = ".devgentic/repos";
 export const IDB_NAME = "devgentic";
 export const IDB_VERSION = 1;
 export const IDB_SESSIONS_STORE = "sessions";
-
-export const CONFIG_STORAGE_KEY = "devgentic-config";

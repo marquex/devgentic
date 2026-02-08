@@ -8,21 +8,16 @@ import {
 } from "@devgentic/shared";
 import { runAgent } from "../services/agent.js";
 import { getRepoPath } from "../services/git.js";
+import { getTokens } from "../services/settings.js";
 import { ValidationError } from "../lib/errors.js";
 
 const agent = new Hono();
-
-function getToken(c: { req: { header: (name: string) => string | undefined } }, name: string): string {
-  const val = c.req.header(name);
-  if (!val) throw new ValidationError(`Missing ${name} header`);
-  return val;
-}
 
 // POST /api/agent/chat — Prompt-building chat turn (SSE)
 agent.post("/chat", async (c) => {
   const body = await c.req.json();
   const parsed = chatRequestSchema.parse(body);
-  const zaiToken = getToken(c, "X-Zai-Token");
+  const { zaiToken } = getTokens();
 
   const repoDir = await getRepoPath(parsed.repoId);
   if (!repoDir) throw new ValidationError("Repository not found or not cloned");
@@ -70,8 +65,7 @@ agent.post("/chat", async (c) => {
 agent.post("/spec", async (c) => {
   const body = await c.req.json();
   const parsed = specRequestSchema.parse(body);
-  const zaiToken = getToken(c, "X-Zai-Token");
-  const githubToken = c.req.header("X-Github-Token") ?? "";
+  const { zaiToken, githubToken } = getTokens();
 
   const repoDir = await getRepoPath(parsed.repoId);
   if (!repoDir) throw new ValidationError("Repository not found or not cloned");
@@ -154,7 +148,7 @@ agent.post("/spec", async (c) => {
 agent.post("/spec-fix", async (c) => {
   const body = await c.req.json();
   const parsed = specFixRequestSchema.parse(body);
-  const zaiToken = getToken(c, "X-Zai-Token");
+  const { zaiToken } = getTokens();
 
   const repoDir = await getRepoPath(parsed.repoId);
   if (!repoDir) throw new ValidationError("Repository not found or not cloned");
@@ -214,8 +208,7 @@ agent.post("/spec-fix", async (c) => {
 agent.post("/execute", async (c) => {
   const body = await c.req.json();
   const parsed = executeRequestSchema.parse(body);
-  const zaiToken = getToken(c, "X-Zai-Token");
-  const githubToken = c.req.header("X-Github-Token") ?? "";
+  const { zaiToken, githubToken } = getTokens();
 
   const repoDir = await getRepoPath(parsed.repoId);
   if (!repoDir) throw new ValidationError("Repository not found or not cloned");

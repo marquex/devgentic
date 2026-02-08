@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,22 +10,47 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useConfig } from "@/hooks/use-config";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
+import type { SettingsResponse } from "@devgentic/shared";
 
 export function SettingsPage() {
-  const { config, updateConfig } = useConfig();
-  const [zaiToken, setZaiToken] = useState(config.zaiToken ?? "");
-  const [githubToken, setGithubToken] = useState(config.githubToken ?? "");
-  const [e2bApiKey, setE2bApiKey] = useState(config.e2bApiKey ?? "");
+  const qc = useQueryClient();
+  const { data: settings } = useQuery<SettingsResponse>({
+    queryKey: ["settings"],
+    queryFn: () => api.get("/settings"),
+  });
+
+  const [zaiToken, setZaiToken] = useState("");
+  const [githubToken, setGithubToken] = useState("");
+  const [e2bApiKey, setE2bApiKey] = useState("");
+
+  useEffect(() => {
+    if (settings) {
+      setZaiToken(settings.zaiToken ?? "");
+      setGithubToken(settings.githubToken ?? "");
+      setE2bApiKey(settings.e2bApiKey ?? "");
+    }
+  }, [settings]);
+
+  const mutation = useMutation({
+    mutationFn: (body: { zaiToken?: string; githubToken?: string; e2bApiKey?: string }) =>
+      api.put("/settings", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("Settings saved");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to save settings");
+    },
+  });
 
   function handleSave() {
-    updateConfig({
-      zaiToken: zaiToken || null,
-      githubToken: githubToken || null,
-      e2bApiKey: e2bApiKey || null,
+    mutation.mutate({
+      zaiToken: zaiToken || undefined,
+      githubToken: githubToken || undefined,
+      e2bApiKey: e2bApiKey || undefined,
     });
-    toast.success("Settings saved");
   }
 
   return (
@@ -93,7 +119,9 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave}>Save Settings</Button>
+      <Button onClick={handleSave} disabled={mutation.isPending}>
+        {mutation.isPending ? "Saving..." : "Save Settings"}
+      </Button>
     </div>
   );
 }

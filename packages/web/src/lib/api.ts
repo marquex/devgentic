@@ -1,16 +1,7 @@
-import { getConfig } from "@/stores/config-store";
-
 const BASE_URL = "/api";
 
 function getHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  const config = getConfig();
-  if (config.zaiToken) headers["X-Zai-Token"] = config.zaiToken;
-  if (config.githubToken) headers["X-Github-Token"] = config.githubToken;
-  if (config.e2bApiKey) headers["X-E2b-Key"] = config.e2bApiKey;
-  return headers;
+  return { "Content-Type": "application/json" };
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {

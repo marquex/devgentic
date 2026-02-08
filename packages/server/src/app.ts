@@ -6,6 +6,7 @@ import { AppError } from "./lib/errors.js";
 import health from "./routes/health.js";
 import repos from "./routes/repos.js";
 import agent from "./routes/agent.js";
+import settings from "./routes/settings.js";
 
 export function createApp() {
   const app = new Hono();
@@ -17,7 +18,7 @@ export function createApp() {
     cors({
       origin: ["http://localhost:5173"],
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowHeaders: ["Content-Type", "X-Zai-Token", "X-Github-Token", "X-E2b-Key"],
+      allowHeaders: ["Content-Type"],
     })
   );
 
@@ -25,6 +26,7 @@ export function createApp() {
   app.route("/api/health", health);
   app.route("/api/repos", repos);
   app.route("/api/agent", agent);
+  app.route("/api/settings", settings);
 
   // Error handler
   app.onError((err, c) => {

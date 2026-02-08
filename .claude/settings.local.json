@@ -1,6 +1,9 @@
 {
   "permissions": {
     "allow": [
+      "Read",
+      "Write",
+      "Edit",
       "WebSearch",
       "WebFetch(domain:www.npmjs.com)",
       "WebFetch(domain:ui.shadcn.com)",
@@ -14,7 +17,8 @@
       "Bash(npx vite build:*)",
       "Bash(bun add:*)",
       "Bash(bun run:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git -C /Users/javi/projects/code/devgentic log --oneline)"
     ]
   }
 }
