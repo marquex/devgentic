@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "dev": "bun run --filter '*' dev",
-    "dev:server": "bun run --filter @devgentic/server dev",
-    "dev:web": "bun run --filter @devgentic/web dev",
+    "dev:server": "bun run --filter @devgentic/server --elide-lines=0 dev ",
+    "dev:web": "bun run --filter @devgentic/web --elide-lines=0 dev",
     "build": "bun run --filter '*' build",
     "typecheck": "bun run --filter '*' typecheck"
   }

@@ -11,7 +11,7 @@ export const SESSION_STEP_LABELS: Record<(typeof SESSION_STEPS)[number], string>
   execute: "Execute",
 };
 
-export const REPO_CLONE_DIR = ".devgentic/repos";
+export const REPO_CLONE_DIR = "repos";
 
 export const IDB_NAME = "devgentic";
 export const IDB_VERSION = 1;

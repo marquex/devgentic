@@ -18,7 +18,17 @@
       "Bash(bun add:*)",
       "Bash(bun run:*)",
       "Bash(curl:*)",
-      "Bash(git -C /Users/javi/projects/code/devgentic log --oneline)"
+      "Bash(git -C /Users/javi/projects/code/devgentic log --oneline)",
+      "Bash(bun --watch:*)",
+      "Bash(python3:*)"
     ]
+  },
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "407d16d617534277b98b79cf2d89f438.2FuyFwvbjjl5QVad",
+    "API_TIMEOUT_MS:": "3000000",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air"
   }
 }

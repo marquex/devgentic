@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { createRepoSchema, updateRepoSchema } from "@devgentic/shared";
 import * as repoDb from "../db/repos.js";
 import { cloneRepo, deleteClone } from "../services/git.js";
+import { checkRepoAccess } from "../services/github.js";
+import { getTokens } from "../services/settings.js";
 import { NotFoundError } from "../lib/errors.js";
 
 const repos = new Hono();
@@ -24,11 +26,19 @@ repos.post("/", async (c) => {
   const body = await c.req.json();
   const parsed = createRepoSchema.parse(body);
 
+  const { githubToken } = getTokens();
+
+  // Pre-validate GitHub repo access before creating DB record
+  const isGitHub = parsed.url.includes("github.com");
+  if (isGitHub) {
+    await checkRepoAccess(parsed.url, githubToken);
+  }
+
   const id = crypto.randomUUID();
   const repo = repoDb.createRepo(id, parsed.name, parsed.url);
 
   // Start async clone — don't await
-  cloneRepo(id, parsed.url).catch((err) => {
+  cloneRepo(id, parsed.url, githubToken || undefined).catch((err) => {
     console.error(`Clone failed for ${id}:`, err);
   });
 

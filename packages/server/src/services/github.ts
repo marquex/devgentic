@@ -1,5 +1,6 @@
 import { Octokit } from "octokit";
 import simpleGit from "simple-git";
+import { AppError } from "../lib/errors.js";
 
 interface CreatePROptions {
   repoDir: string;
@@ -10,7 +11,7 @@ interface CreatePROptions {
   githubToken: string;
 }
 
-function parseGitHubUrl(remoteUrl: string): { owner: string; repo: string } {
+export function parseGitHubUrl(remoteUrl: string): { owner: string; repo: string } {
   // Handle HTTPS and SSH URLs
   const httpsMatch = remoteUrl.match(/github\.com\/([^/]+)\/([^/.]+)/);
   if (httpsMatch) return { owner: httpsMatch[1], repo: httpsMatch[2] };
@@ -54,6 +55,30 @@ export async function createPullRequest(options: CreatePROptions): Promise<strin
         state: "open",
       });
       if (pulls.length > 0) return pulls[0].html_url;
+    }
+    throw err;
+  }
+}
+
+export async function checkRepoAccess(url: string, githubToken: string): Promise<void> {
+  if (!githubToken) {
+    throw new AppError("GitHub token is not configured. Please add it in Settings.", 400);
+  }
+
+  const { owner, repo } = parseGitHubUrl(url);
+  const octokit = new Octokit({ auth: githubToken });
+
+  try {
+    await octokit.rest.repos.get({ owner, repo });
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "status" in err) {
+      const status = (err as { status: number }).status;
+      if (status === 404 || status === 403) {
+        throw new AppError(
+          `Cannot access repository ${owner}/${repo}. It may not exist or your GitHub token may lack permission.`,
+          status === 403 ? 403 : 404
+        );
+      }
     }
     throw err;
   }
