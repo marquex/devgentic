@@ -1,124 +1,51 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { SessionStepper } from "@/components/session/session-stepper";
-import { ChatPanel } from "@/components/chat/chat-panel";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useSession, useUpdateSession } from "@/hooks/use-sessions";
-import { useAgentStream } from "@/hooks/use-agent-stream";
-import type { ChatMessage } from "@devgentic/shared";
 import { toast } from "sonner";
-import { CheckCircle, StopCircle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export function SessionPromptPage() {
   const { sessionId } = useParams({ from: "/sessions/$sessionId/prompt" });
   const navigate = useNavigate();
   const { data: session } = useSession(sessionId);
   const updateSession = useUpdateSession();
-  const { events, isStreaming, start, abort } = useAgentStream();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [initialized, setInitialized] = useState(false);
-  const pendingMessagesRef = useRef<ChatMessage[]>([]);
+  const [prompt, setPrompt] = useState(session?.prompt ?? "");
+  const [branchName, setBranchName] = useState(session?.branchName ?? `devgentic-${sessionId.slice(0, 8)}`);
 
-  // Load chat history from session when it first loads
-  useEffect(() => {
-    if (session && !initialized) {
-      setMessages(session.chatHistory ?? []);
-      setInitialized(true);
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt");
+      return;
     }
-  }, [session, initialized]);
-
-  // Accumulate streaming text from events
-  const streamingContent = useMemo(() => {
-    return events
-      .filter((e) => e.type === "text")
-      .map((e) => e.content)
-      .join("");
-  }, [events]);
-
-  // When streaming completes, finalize assistant message
-  const prevStreaming = useRef(false);
-  useEffect(() => {
-    if (prevStreaming.current && !isStreaming) {
-      const assistantContent = events
-        .filter((e) => e.type === "text")
-        .map((e) => e.content)
-        .join("");
-
-      if (assistantContent) {
-        const assistantMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: assistantContent,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => {
-          const withAssistant = [...prev, assistantMsg];
-          updateSession.mutate({
-            id: sessionId,
-            chatHistory: withAssistant,
-          });
-          return withAssistant;
-        });
-      }
+    if (!branchName.trim()) {
+      toast.error("Please enter a branch name");
+      return;
     }
-    prevStreaming.current = isStreaming;
-  }, [isStreaming, events, sessionId, updateSession]);
-
-  const handleSend = useCallback(
-    async (message: string) => {
-      if (!session) return;
-
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: message,
-        timestamp: new Date().toISOString(),
-      };
-
-      setMessages((prev) => {
-        const updated = [...prev, userMsg];
-        pendingMessagesRef.current = updated;
-        updateSession.mutate({
-          id: sessionId,
-          chatHistory: updated,
-        });
-        return updated;
-      });
-
-      // Start agent stream
-      await start("/agent/chat", {
-        sessionId,
-        repoId: session.repoId,
-        message,
-        history: [...pendingMessagesRef.current].map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      });
-    },
-    [session, sessionId, updateSession, start]
-  );
-
-  function handleFinalize() {
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    const finalPrompt = lastUser?.content ?? "";
 
     updateSession.mutate(
       {
         id: sessionId,
-        finalPrompt,
-        currentStep: "spec",
+        prompt,
+        branchName,
+        currentStep: "plan",
       },
       {
         onSuccess: () => {
-          toast.success("Prompt finalized");
+          toast.success("Prompt saved");
           navigate({
-            to: "/sessions/$sessionId/spec",
+            to: "/sessions/$sessionId/actions",
             params: { sessionId },
           });
         },
+        onError: (err) => toast.error(err.message),
       }
     );
   }
@@ -128,34 +55,49 @@ export function SessionPromptPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="max-w-2xl">
+      <div className="mb-6">
         <SessionStepper currentStep="prompt" />
-        <div className="flex gap-2">
-          {isStreaming && (
-            <Button variant="outline" size="sm" onClick={abort}>
-              <StopCircle className="mr-1 h-4 w-4" />
-              Stop
-            </Button>
-          )}
-          <Button
-            size="sm"
-            onClick={handleFinalize}
-            disabled={messages.length === 0 || isStreaming}
-          >
-            <CheckCircle className="mr-1 h-4 w-4" />
-            Finalize Prompt
-          </Button>
-        </div>
       </div>
 
-      <Card className="flex-1 overflow-hidden">
-        <ChatPanel
-          messages={messages}
-          onSend={handleSend}
-          isStreaming={isStreaming}
-          streamingContent={streamingContent}
-        />
+      <Card>
+        <CardHeader>
+          <CardTitle>Define Your Task</CardTitle>
+          <CardDescription>
+            Describe what you want the AI agent to work on and specify the branch name.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <Label htmlFor="prompt">Task Description</Label>
+              <Textarea
+                id="prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe the task you want the agent to work on..."
+                rows={8}
+                className="mt-1.5"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="branch">Branch Name</Label>
+              <Input
+                id="branch"
+                value={branchName}
+                onChange={(e) => setBranchName(e.target.value)}
+                placeholder="devgentic-feature-name"
+                className="mt-1.5"
+                required
+              />
+            </div>
+            <Button type="submit" disabled={!prompt.trim() || !branchName.trim()}>
+              Continue to Actions
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );

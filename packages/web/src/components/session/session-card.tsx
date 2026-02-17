@@ -19,10 +19,7 @@ interface SessionCardProps {
 }
 
 export function SessionCard({ session, onDelete, onArchive }: SessionCardProps) {
-  const stepPath =
-    session.currentStep === "create"
-      ? `/sessions/${session.id}/prompt`
-      : `/sessions/${session.id}/${session.currentStep}`;
+  const stepPath = `/sessions/${session.id}/${session.currentStep}`;
 
   return (
     <Card>

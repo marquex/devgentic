@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
-  chatRequestSchema,
   specRequestSchema,
   specFixRequestSchema,
   executeRequestSchema,
@@ -12,54 +11,6 @@ import { getTokens } from "../services/settings.js";
 import { ValidationError } from "../lib/errors.js";
 
 const agent = new Hono();
-
-// POST /api/agent/chat — Prompt-building chat turn (SSE)
-agent.post("/chat", async (c) => {
-  const body = await c.req.json();
-  const parsed = chatRequestSchema.parse(body);
-  const { zaiToken } = getTokens();
-
-  const repoDir = await getRepoPath(parsed.repoId);
-  if (!repoDir) throw new ValidationError("Repository not found or not cloned");
-
-  // Build full prompt from history + new message
-  const historyText = parsed.history
-    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-    .join("\n\n");
-  const fullPrompt = historyText
-    ? `${historyText}\n\nUser: ${parsed.message}`
-    : parsed.message;
-
-  return streamSSE(c, async (stream) => {
-    let eventId = 0;
-
-    await runAgent({
-      role: "promptBuilder",
-      prompt: fullPrompt,
-      repoDir,
-      zaiToken,
-      onEvent: async (event) => {
-        await stream.writeSSE({
-          id: String(eventId++),
-          event: "message",
-          data: JSON.stringify({
-            id: String(eventId),
-            type: event.type,
-            content: event.content,
-            metadata: event.metadata,
-            timestamp: new Date().toISOString(),
-          }),
-        });
-      },
-    });
-
-    await stream.writeSSE({
-      id: String(eventId),
-      event: "message",
-      data: "[DONE]",
-    });
-  });
-});
 
 // POST /api/agent/spec — Generate specs (SSE)
 agent.post("/spec", async (c) => {
@@ -87,11 +38,12 @@ agent.post("/spec", async (c) => {
     };
 
     // Import git/github services for branch/PR operations
-    const { createBranch, pushBranch } = await import("../services/git.js");
-    const branchName = `devgentic/spec-${parsed.sessionId.slice(0, 8)}`;
+    const { createBranch, pushBranch, getDefaultBranch } = await import("../services/git.js");
+    const branchName = parsed.branchName;
 
     try {
-      await createBranch(repoDir, branchName, parsed.baseBranch);
+      const defaultBranch = await getDefaultBranch(repoDir);
+      await createBranch(repoDir, branchName, defaultBranch);
       await sendEvent({
         type: "branch_created",
         content: `Branch ${branchName} created`,
@@ -117,10 +69,11 @@ agent.post("/spec", async (c) => {
 
       if (githubToken) {
         const { createPullRequest } = await import("../services/github.js");
+        const defaultBranch = await getDefaultBranch(repoDir);
         const prUrl = await createPullRequest({
           repoDir,
           head: branchName,
-          base: parsed.baseBranch,
+          base: defaultBranch,
           title: `[Devgentic] Specs: ${parsed.prompt.slice(0, 60)}`,
           body: "Auto-generated specifications by Devgentic agent.",
           githubToken,

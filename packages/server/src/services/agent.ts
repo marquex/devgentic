@@ -1,14 +1,8 @@
-import { query, type AgentConfig } from "@anthropic-ai/claude-code";
+import { query } from "@anthropic-ai/claude-code";
 import { ZAI_BASE_URL, ZAI_TIMEOUT_MS } from "@devgentic/shared";
 import type { AgentRole } from "@devgentic/shared";
 
 const SYSTEM_PROMPTS: Record<AgentRole, string> = {
-  promptBuilder: `You are an expert prompt engineer helping a developer refine their task description.
-You have read-only access to their repository using Read, Glob, and Grep tools.
-Help them explore the codebase and craft a clear, detailed prompt for the next phase (spec generation).
-Ask clarifying questions, suggest improvements, and point out potential issues.
-When the developer is satisfied, help them finalize the prompt.`,
-
   specGenerator: `You are a spec generator. Given a task description, create detailed specifications.
 Create spec files in a 'specs/' directory on the current branch.
 Include: overview, requirements, architecture decisions, file changes, and acceptance criteria.
@@ -42,55 +36,54 @@ interface AgentRunOptions {
 export async function runAgent(options: AgentRunOptions) {
   const { role, prompt, repoDir, zaiToken, onEvent, abortSignal } = options;
 
-  const allowedTools =
-    role === "promptBuilder"
-      ? ["Read", "Glob", "Grep"]
-      : ["Read", "Glob", "Grep", "Write", "Edit", "Bash"];
-
-  const config: AgentConfig = {
-    prompt,
-    systemPrompt: SYSTEM_PROMPTS[role],
-    allowedTools,
-    cwd: repoDir,
-    env: {
-      ANTHROPIC_BASE_URL: ZAI_BASE_URL,
-      ANTHROPIC_AUTH_TOKEN: zaiToken,
-      API_TIMEOUT_MS: String(ZAI_TIMEOUT_MS),
-    },
-  };
-
   onEvent?.({ type: "status", content: `Starting ${role} agent...` });
 
   try {
-    const result = await query(config);
+    const response = query({
+      prompt,
+      options: {
+        customSystemPrompt: SYSTEM_PROMPTS[role],
+        allowedTools: ["Read", "Glob", "Grep", "Write", "Edit", "Bash"],
+        cwd: repoDir,
+        env: {
+          ANTHROPIC_BASE_URL: ZAI_BASE_URL,
+          ANTHROPIC_AUTH_TOKEN: zaiToken,
+          API_TIMEOUT_MS: String(ZAI_TIMEOUT_MS),
+        },
+        abortController: abortSignal ? { signal: abortSignal } as unknown as AbortController : undefined,
+      },
+    });
 
     // Stream the result messages as events
-    for (const message of result) {
+    for await (const message of response) {
       if (abortSignal?.aborted) break;
 
       if (typeof message === "string") {
         onEvent?.({ type: "text", content: message });
       } else if (message && typeof message === "object") {
         const msg = message as Record<string, unknown>;
-        if (msg.type === "tool_use") {
-          onEvent?.({
-            type: "tool_use",
-            content: `Using tool: ${msg.name}`,
-            metadata: { toolName: String(msg.name || "") },
-          });
-        } else if (msg.type === "tool_result") {
-          onEvent?.({
-            type: "tool_result",
-            content: String(msg.content || ""),
-          });
-        } else if (msg.type === "text") {
-          onEvent?.({ type: "text", content: String(msg.text || msg.content || "") });
+        if (msg.type === "result" && msg.subtype === "success") {
+          onEvent?.({ type: "done", content: "Agent completed" });
+        } else if (msg.type === "stream_event") {
+          const event = msg.event as Record<string, unknown>;
+          if (event.type === "tool_use") {
+            onEvent?.({
+              type: "tool_use",
+              content: `Using tool: ${event.name}`,
+              metadata: { toolName: String(event.name || "") },
+            });
+          } else if (event.type === "text") {
+            onEvent?.({ type: "text", content: String(event.text || "") });
+          } else if (event.type === "tool_result") {
+            onEvent?.({ type: "tool_result", content: "Tool completed" });
+          }
+        } else if (msg.type === "result" && msg.subtype === 'error_during_execution') {
+          onEvent?.({ type: "error", content: "Agent encountered an error during execution" });
         }
       }
     }
 
-    onEvent?.({ type: "done", content: "Agent completed" });
-    return result;
+    return response;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Agent failed";
     onEvent?.({ type: "error", content: message });

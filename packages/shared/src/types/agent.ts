@@ -23,19 +23,11 @@ export interface AgentEvent {
 }
 
 export type AgentRole =
-  | "promptBuilder"
   | "specGenerator"
   | "specFixer"
   | "implementer"
   | "validator"
   | "documenter";
-
-export interface ChatRequest {
-  sessionId: string;
-  repoId: string;
-  message: string;
-  history: Array<{ role: "user" | "assistant"; content: string }>;
-}
 
 export interface SpecRequest {
   sessionId: string;

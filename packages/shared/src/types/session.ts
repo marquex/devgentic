@@ -1,14 +1,7 @@
-export type SessionStep = "create" | "prompt" | "spec" | "review" | "execute";
+export type SessionStep = "prompt" | "plan" | "implement" | "validate" | "document";
 export type SessionStatus = "active" | "completed" | "archived";
 export type ReviewStatus = "pending" | "approved" | "changes_requested";
 export type ExecutionPhase = "implement" | "validate" | "document";
-
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: string;
-}
 
 export interface ReviewComment {
   id: string;
@@ -34,8 +27,8 @@ export interface Session {
   repoName: string;
   currentStep: SessionStep;
   status: SessionStatus;
-  chatHistory: ChatMessage[];
-  finalPrompt: string | null;
+  prompt: string | null;
+  branchName: string | null;
   specBranch: string | null;
   specPrUrl: string | null;
   specContent: string | null;

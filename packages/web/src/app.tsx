@@ -11,9 +11,7 @@ import { ReposPage } from "@/pages/repos";
 import { SettingsPage } from "@/pages/settings";
 import { SessionCreatePage } from "@/pages/session-create";
 import { SessionPromptPage } from "@/pages/session-prompt";
-import { SessionSpecPage } from "@/pages/session-spec";
-import { SessionReviewPage } from "@/pages/session-review";
-import { SessionExecutePage } from "@/pages/session-execute";
+import { SessionActionsPage } from "@/pages/session-actions";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -53,22 +51,10 @@ const sessionPromptRoute = createRoute({
   component: SessionPromptPage,
 });
 
-const sessionSpecRoute = createRoute({
+const sessionActionsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/sessions/$sessionId/spec",
-  component: SessionSpecPage,
-});
-
-const sessionReviewRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/sessions/$sessionId/review",
-  component: SessionReviewPage,
-});
-
-const sessionExecuteRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/sessions/$sessionId/execute",
-  component: SessionExecutePage,
+  path: "/sessions/$sessionId/actions",
+  component: SessionActionsPage,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -77,9 +63,7 @@ const routeTree = rootRoute.addChildren([
   settingsRoute,
   sessionNewRoute,
   sessionPromptRoute,
-  sessionSpecRoute,
-  sessionReviewRoute,
-  sessionExecuteRoute,
+  sessionActionsRoute,
 ]);
 
 const router = createRouter({ routeTree });

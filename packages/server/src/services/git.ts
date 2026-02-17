@@ -86,3 +86,11 @@ export async function getRepoPath(repoId: string): Promise<string | null> {
   const repo = repoDb.getRepo(repoId);
   return repo?.localPath ?? null;
 }
+
+export async function getDefaultBranch(repoId: string): Promise<string> {
+  const repo = repoDb.getRepo(repoId);
+  if (!repo?.defaultBranch) {
+    throw new Error(`Repository ${repoId} not found or has no default branch`);
+  }
+  return repo.defaultBranch;
+}

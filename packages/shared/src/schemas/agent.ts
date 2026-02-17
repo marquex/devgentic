@@ -1,22 +1,10 @@
 import { z } from "zod";
 
-export const chatRequestSchema = z.object({
-  sessionId: z.string().min(1),
-  repoId: z.string().min(1),
-  message: z.string().min(1),
-  history: z.array(
-    z.object({
-      role: z.enum(["user", "assistant"]),
-      content: z.string(),
-    })
-  ),
-});
-
 export const specRequestSchema = z.object({
   sessionId: z.string().min(1),
   repoId: z.string().min(1),
   prompt: z.string().min(1),
-  baseBranch: z.string().min(1),
+  branchName: z.string().min(1),
 });
 
 export const specFixRequestSchema = z.object({
